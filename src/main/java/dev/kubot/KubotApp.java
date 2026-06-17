@@ -9,6 +9,7 @@ import dev.kubot.service.YamlSupport;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.CoreV1Event;
 import io.kubernetes.client.openapi.models.V1Container;
+import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1Namespace;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
@@ -40,6 +41,7 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -248,6 +250,16 @@ public class KubotApp extends Application {
         podTable = new TableView<>();
         podTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         podTable.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> selectPod(newValue));
+        podTable.setRowFactory(view -> new TableRow<>() {
+            @Override
+            protected void updateItem(V1Pod pod, boolean empty) {
+                super.updateItem(pod, empty);
+                getStyleClass().removeAll("pod-healthy", "pod-warning", "pod-error", "pod-completed", "pod-unknown");
+                if (!empty && pod != null) {
+                    getStyleClass().add(podStatusClass(pod));
+                }
+            }
+        });
 
         TableColumn<V1Pod, String> name = column("Name", pod -> name(pod.getMetadata()), 240);
         TableColumn<V1Pod, String> phase = column("Phase", pod -> status(pod).getPhase(), 90);
@@ -552,7 +564,7 @@ public class KubotApp extends Application {
                     .sorted(Comparator.comparing(podEvent -> podEvent.getLastTimestamp() == null ? OffsetDateTime.MIN : podEvent.getLastTimestamp()))
                     .toList();
             events.setAll(matching);
-            eventsText.setText(matching.isEmpty() ? "(no pod events found)" : matching.stream().map(this::eventLine).collect(Collectors.joining(System.lineSeparator())));
+            eventsText.setText(matching.isEmpty() ? "No recent Kubernetes complaints for this pod." : matching.stream().map(this::eventLine).collect(Collectors.joining(System.lineSeparator())));
         });
         task.setOnFailed(failed -> {
             Throwable failure = task.getException();
@@ -713,6 +725,59 @@ public class KubotApp extends Application {
         return status.getContainerStatuses().stream()
                 .mapToInt(cs -> cs.getRestartCount() == null ? 0 : cs.getRestartCount())
                 .sum();
+    }
+
+    private String podStatusClass(V1Pod pod) {
+        String phase = status(pod).getPhase();
+        if ("Succeeded".equals(phase)) {
+            return "pod-completed";
+        }
+        if ("Failed".equals(phase)) {
+            return "pod-error";
+        }
+        if ("Unknown".equals(phase)) {
+            return "pod-unknown";
+        }
+        if (hasDangerousWaitingReason(pod)) {
+            return "pod-error";
+        }
+        if ("Pending".equals(phase) || !isFullyReady(pod) || restarts(pod) > 0) {
+            return "pod-warning";
+        }
+        if ("Running".equals(phase)) {
+            return "pod-healthy";
+        }
+        return "pod-unknown";
+    }
+
+    private boolean isFullyReady(V1Pod pod) {
+        V1PodStatus status = status(pod);
+        int total = pod.getSpec() == null || pod.getSpec().getContainers() == null ? 0 : pod.getSpec().getContainers().size();
+        long ready = status.getContainerStatuses() == null ? 0 : status.getContainerStatuses().stream()
+                .filter(containerStatus -> Boolean.TRUE.equals(containerStatus.getReady()))
+                .count();
+        return total > 0 && ready == total;
+    }
+
+    private boolean hasDangerousWaitingReason(V1Pod pod) {
+        V1PodStatus status = status(pod);
+        if (status.getContainerStatuses() == null) {
+            return false;
+        }
+        return status.getContainerStatuses().stream()
+                .map(V1ContainerStatus::getState)
+                .filter(Objects::nonNull)
+                .map(state -> state.getWaiting() == null ? null : state.getWaiting().getReason())
+                .filter(Objects::nonNull)
+                .anyMatch(reason -> Set.of(
+                        "CrashLoopBackOff",
+                        "ImagePullBackOff",
+                        "ErrImagePull",
+                        "CreateContainerConfigError",
+                        "CreateContainerError",
+                        "RunContainerError",
+                        "InvalidImageName"
+                ).contains(reason));
     }
 
     private V1PodStatus status(V1Pod pod) {
