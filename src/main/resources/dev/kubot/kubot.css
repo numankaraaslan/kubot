@@ -63,10 +63,12 @@
 }
 
 .legend-dot {
-    -fx-min-width: 12px;
-    -fx-min-height: 12px;
-    -fx-pref-width: 12px;
-    -fx-pref-height: 12px;
+    -fx-min-width: 16px;
+    -fx-min-height: 16px;
+    -fx-pref-width: 16px;
+    -fx-pref-height: 16px;
+    -fx-max-width: 16px;
+    -fx-max-height: 16px;
     -fx-background-radius: 0;
 }
 

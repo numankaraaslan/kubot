@@ -282,16 +282,21 @@ public class KubotApp extends Application {
         );
         legend.getStyleClass().add("status-legend");
         legend.setAlignment(Pos.CENTER_LEFT);
+        legend.setFillHeight(false);
         return legend;
     }
 
     private HBox legendItem(String text, String colorClass) {
         Region dot = new Region();
+        dot.setMinSize(16, 16);
+        dot.setPrefSize(16, 16);
+        dot.setMaxSize(16, 16);
         dot.getStyleClass().addAll("legend-dot", colorClass);
         Label label = new Label(text);
         label.getStyleClass().add("legend-label");
         HBox item = new HBox(4, dot, label);
         item.setAlignment(Pos.CENTER_LEFT);
+        item.setFillHeight(false);
         return item;
     }
 
