@@ -1,0 +1,73 @@
+.table-view {
+    -fx-table-cell-border-color: #9a9a9a;
+}
+
+.table-view .column-header,
+.table-view .filler {
+    -fx-background-color: linear-gradient(#eeeeee, #d3d3d3);
+    -fx-border-color: #8b8b8b;
+    -fx-border-width: 0 1 1 0;
+}
+
+.table-view .table-cell {
+    -fx-border-color: #b0b0b0;
+    -fx-border-width: 0 1 1 0;
+    -fx-padding: 7 8 7 8;
+}
+
+.table-row-cell {
+    -fx-cell-size: 36px;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #f6f6f6;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #0078a8;
+}
+
+.table-row-cell:selected .table-cell {
+    -fx-text-fill: white;
+}
+
+.table-row-cell:focused:selected,
+.table-row-cell:selected:focused,
+.table-row-cell:filled:selected,
+.table-row-cell:filled:selected:focused {
+    -fx-background-color: #0078a8;
+}
+
+.table-view:focused .table-row-cell:filled:selected .table-cell,
+.table-row-cell:filled:selected .table-cell {
+    -fx-text-fill: white;
+}
+
+.kubot-list {
+    -fx-border-color: #8b8b8b;
+    -fx-border-width: 1;
+}
+
+.kubot-list .list-cell {
+    -fx-border-color: transparent transparent #d0d0d0 transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 7 10 7 10;
+}
+
+.kubot-list .list-cell:odd {
+    -fx-background-color: #f6f6f6;
+}
+
+.kubot-list .list-cell:selected {
+    -fx-background-color: #0078a8;
+    -fx-text-fill: white;
+}
+
+.kubot-list .list-cell.system-namespace-cell {
+    -fx-text-fill: #9f1d1d;
+}
+
+.kubot-list .list-cell.system-namespace-cell:selected {
+    -fx-background-color: #8f1d1d;
+    -fx-text-fill: white;
+}
