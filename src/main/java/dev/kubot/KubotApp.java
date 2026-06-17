@@ -40,8 +40,8 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -250,19 +250,9 @@ public class KubotApp extends Application {
         podTable = new TableView<>();
         podTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         podTable.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> selectPod(newValue));
-        podTable.setRowFactory(view -> new TableRow<>() {
-            @Override
-            protected void updateItem(V1Pod pod, boolean empty) {
-                super.updateItem(pod, empty);
-                getStyleClass().removeAll("pod-healthy", "pod-warning", "pod-error", "pod-completed", "pod-unknown");
-                if (!empty && pod != null) {
-                    getStyleClass().add(podStatusClass(pod));
-                }
-            }
-        });
 
         TableColumn<V1Pod, String> name = column("Name", pod -> name(pod.getMetadata()), 240);
-        TableColumn<V1Pod, String> phase = column("Phase", pod -> status(pod).getPhase(), 90);
+        TableColumn<V1Pod, String> phase = statusColumn();
         TableColumn<V1Pod, String> ready = column("Ready", this::readyContainers, 80);
         TableColumn<V1Pod, String> restarts = column("Restarts", pod -> Integer.toString(restarts(pod)), 80);
         TableColumn<V1Pod, String> age = column("Age", pod -> age(pod.getMetadata()), 90);
@@ -334,6 +324,32 @@ public class KubotApp extends Application {
         TableColumn<V1Pod, String> column = new TableColumn<>(title);
         column.setPrefWidth(width);
         column.setCellValueFactory(data -> new ReadOnlyStringWrapper(value.apply(data.getValue())));
+        return column;
+    }
+
+    private TableColumn<V1Pod, String> statusColumn() {
+        TableColumn<V1Pod, String> column = new TableColumn<>("Status");
+        column.setPrefWidth(120);
+        column.setCellValueFactory(data -> new ReadOnlyStringWrapper(podDisplayStatus(data.getValue())));
+        column.setCellFactory(view -> new TableCell<>() {
+            @Override
+            protected void updateItem(String status, boolean empty) {
+                super.updateItem(status, empty);
+                getStyleClass().removeAll("status-warning", "status-error", "status-unknown");
+                if (empty || status == null) {
+                    setText(null);
+                    return;
+                }
+                setText(status);
+                V1Pod pod = getTableRow() == null ? null : getTableRow().getItem();
+                if (pod != null) {
+                    String severity = podStatusSeverity(pod);
+                    if (!severity.isBlank()) {
+                        getStyleClass().add(severity);
+                    }
+                }
+            }
+        });
         return column;
     }
 
@@ -727,27 +743,29 @@ public class KubotApp extends Application {
                 .sum();
     }
 
-    private String podStatusClass(V1Pod pod) {
+    private String podDisplayStatus(V1Pod pod) {
+        return dangerousWaitingReason(pod)
+                .orElseGet(() -> {
+                    String phase = status(pod).getPhase();
+                    if ("Running".equals(phase) && !isFullyReady(pod)) {
+                        return "Not Ready";
+                    }
+                    return phase == null || phase.isBlank() ? "Unknown" : phase;
+                });
+    }
+
+    private String podStatusSeverity(V1Pod pod) {
         String phase = status(pod).getPhase();
-        if ("Succeeded".equals(phase)) {
-            return "pod-completed";
-        }
-        if ("Failed".equals(phase)) {
-            return "pod-error";
+        if (dangerousWaitingReason(pod).isPresent() || "Failed".equals(phase)) {
+            return "status-error";
         }
         if ("Unknown".equals(phase)) {
-            return "pod-unknown";
+            return "status-unknown";
         }
-        if (hasDangerousWaitingReason(pod)) {
-            return "pod-error";
+        if ("Pending".equals(phase) || ("Running".equals(phase) && !isFullyReady(pod))) {
+            return "status-warning";
         }
-        if ("Pending".equals(phase) || !isFullyReady(pod) || restarts(pod) > 0) {
-            return "pod-warning";
-        }
-        if ("Running".equals(phase)) {
-            return "pod-healthy";
-        }
-        return "pod-unknown";
+        return "";
     }
 
     private boolean isFullyReady(V1Pod pod) {
@@ -759,17 +777,17 @@ public class KubotApp extends Application {
         return total > 0 && ready == total;
     }
 
-    private boolean hasDangerousWaitingReason(V1Pod pod) {
+    private java.util.Optional<String> dangerousWaitingReason(V1Pod pod) {
         V1PodStatus status = status(pod);
         if (status.getContainerStatuses() == null) {
-            return false;
+            return java.util.Optional.empty();
         }
         return status.getContainerStatuses().stream()
                 .map(V1ContainerStatus::getState)
                 .filter(Objects::nonNull)
                 .map(state -> state.getWaiting() == null ? null : state.getWaiting().getReason())
                 .filter(Objects::nonNull)
-                .anyMatch(reason -> Set.of(
+                .filter(reason -> Set.of(
                         "CrashLoopBackOff",
                         "ImagePullBackOff",
                         "ErrImagePull",
@@ -777,7 +795,8 @@ public class KubotApp extends Application {
                         "CreateContainerError",
                         "RunContainerError",
                         "InvalidImageName"
-                ).contains(reason));
+                ).contains(reason))
+                .findFirst();
     }
 
     private V1PodStatus status(V1Pod pod) {

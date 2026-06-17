@@ -23,34 +23,22 @@
     -fx-background-color: #f6f6f6;
 }
 
-.table-row-cell.pod-healthy {
-    -fx-background-color: #edf7ed;
+.table-cell.status-warning {
+    -fx-text-fill: #9a5a00;
+    -fx-font-weight: bold;
 }
 
-.table-row-cell.pod-warning {
-    -fx-background-color: #fff1c2;
+.table-cell.status-error {
+    -fx-text-fill: #b00020;
+    -fx-font-weight: bold;
 }
 
-.table-row-cell.pod-error {
-    -fx-background-color: #ffd6d6;
+.table-cell.status-unknown {
+    -fx-text-fill: #5d3f99;
+    -fx-font-weight: bold;
 }
 
-.table-row-cell.pod-completed {
-    -fx-background-color: #e7eef8;
-}
-
-.table-row-cell.pod-unknown {
-    -fx-background-color: #ececec;
-}
-
-.table-row-cell:selected {
-    -fx-background-color: #0078a8;
-}
-
-.table-row-cell:selected .table-cell {
-    -fx-text-fill: white;
-}
-
+.table-row-cell:selected,
 .table-row-cell:focused:selected,
 .table-row-cell:selected:focused,
 .table-row-cell:filled:selected,
@@ -59,16 +47,11 @@
 }
 
 .table-view:focused .table-row-cell:filled:selected .table-cell,
-.table-row-cell:filled:selected .table-cell {
+.table-row-cell:filled:selected .table-cell,
+.table-row-cell:filled:selected .table-cell.status-warning,
+.table-row-cell:filled:selected .table-cell.status-error,
+.table-row-cell:filled:selected .table-cell.status-unknown {
     -fx-text-fill: white;
-}
-
-.table-row-cell.pod-healthy:selected,
-.table-row-cell.pod-warning:selected,
-.table-row-cell.pod-error:selected,
-.table-row-cell.pod-completed:selected,
-.table-row-cell.pod-unknown:selected {
-    -fx-background-color: #006f9f;
 }
 
 .kubot-list {
