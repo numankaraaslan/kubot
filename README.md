@@ -67,13 +67,9 @@ kubectl config get-contexts
 
 If `kubectl` already works, Kubot should see the same worlds.
 
-## ▶️ Run From Source
+## 🍳 Cook It Yourself
 
-```powershell
-mvn javafx:run
-```
-
-## 📦 Build And Run The Fat JAR
+There are no prebuilt releases yet. For now, build it locally.
 
 On Windows:
 
@@ -102,6 +98,12 @@ target/Kubot.jar
 ```
 
 If Windows has `.jar` files associated with Java, the JAR can also be opened directly.
+
+Manual build command:
+
+```powershell
+mvn clean package -Dmaven.test.skip=true
+```
 
 ## 🔌 Kubernetes Setup
 
