@@ -1,16 +1,36 @@
 # Kubot
 
-Kubot is a small JavaFX desktop viewer for Kubernetes clusters.
+**Kubernetes is complicated. Kubot is for people who just want to see what is going on.**
 
-It is intentionally not an admin console. It is for people who want to see what is running without memorizing `kubectl` commands.
+Kubot is a small JavaFX desktop viewer for Kubernetes clusters. It is intentionally **not** a full admin console. It is a friendly "please show me the pods, config, logs, and weird Kubernetes connections without making me memorize `kubectl`" app.
 
-## What It Shows
+Think of it as a Kubernetes viewer for non-kubetronauts.
+
+```text
+Context -> Namespace -> Pod -> Config / Secrets / Network / Events / Logs
+```
+
+## 🥔 Why?
+
+Because sometimes you do not want this:
+
+```powershell
+kubectl get pods -n something
+kubectl describe pod whatever -n something
+kubectl logs whatever -n something --tail=200
+kubectl get configmap ...
+kubectl get secret ...
+```
+
+You just want to click the thing and see what feeds it.
+
+## 👀 What Kubot Shows
 
 - Kubernetes contexts from your local kubeconfig
-- Namespaces, sorted with normal namespaces first and system namespaces last
+- Namespaces, with normal/user namespaces first and system-ish ones colored red
 - Pods in the selected namespace
 - Pod status, readiness, restarts, age, and what manages the pod
-- Related app wiring:
+- Human-ish related resource explanations:
   - main app workload, such as Deployment
   - Services that route traffic to the pod
   - ConfigMaps used as environment/config
@@ -19,19 +39,21 @@ It is intentionally not an admin console. It is for people who want to see what 
 - Pod events when the current account is allowed to read them
 - Container logs with selectable row count: `100`, `200`, `400`, `1000`
 
-## What It Does Not Do
+## 🚫 What Kubot Does Not Do
 
 Kubot is read-focused.
 
-It does not create, update, delete, scale, restart, exec, port-forward, or mutate Kubernetes resources.
+It does **not** create, update, delete, scale, restart, exec, port-forward, or mutate Kubernetes resources.
 
-## Requirements
+In other words: it looks. It does not poke.
 
-- Windows, macOS, or Linux with Java installed
+## 🧰 Requirements
+
+- Java installed
 - Maven if building from source
 - A kubeconfig file readable by the Kubernetes Java client
 
-On Windows, kubeconfig is usually:
+On Windows, kubeconfig is usually here:
 
 ```text
 C:\Users\<you>\.kube\config
@@ -43,13 +65,15 @@ Kubot reads the same config used by:
 kubectl config get-contexts
 ```
 
-## Run From Source
+If `kubectl` already works, Kubot should see the same worlds.
+
+## ▶️ Run From Source
 
 ```powershell
 mvn javafx:run
 ```
 
-## Build And Run The Fat JAR
+## 📦 Build And Run The Fat JAR
 
 On Windows:
 
@@ -72,9 +96,7 @@ target\Kubot.jar
 
 If Windows has `.jar` files associated with Java, the JAR can also be opened directly.
 
-## Kubernetes Setup
-
-If `kubectl` already works on your machine, Kubot should show the same contexts.
+## 🔌 Kubernetes Setup
 
 To inspect contexts:
 
@@ -88,9 +110,11 @@ To switch your terminal context:
 kubectl config use-context <context-name>
 ```
 
-Kubot does not require the terminal context to be active. You choose the context in the app.
+Kubot does not require the terminal context to be active. You choose the context inside the app.
 
-## Permissions
+If there is no kubeconfig, Kubot shows a setup help popup instead of failing mysteriously.
+
+## 🔐 Permissions
 
 Kubot works best when the selected Kubernetes user can read:
 
@@ -109,13 +133,13 @@ Kubot works best when the selected Kubernetes user can read:
 - cronjobs
 - ingresses
 
-Limited accounts are okay. Kubot tries to keep working and show friendly messages when some resources are forbidden by RBAC.
+Limited accounts are okay. Kubot tries to keep working and show friendly messages when RBAC says "nope."
 
 For namespace-scoped accounts that cannot list namespaces, Kubot falls back to the namespace stored in the kube context.
 
-## Example Read-Only Viewer RBAC
+## 🪪 Example Read-Only Viewer RBAC
 
-This is useful for a personal K3s/VPS cluster where a service account already manages demo pods in one namespace, but Kubot should read the whole cluster.
+Useful for a personal K3s/VPS cluster where a service account manages demo pods in one namespace, but Kubot should read the whole cluster.
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -150,21 +174,25 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ```
 
-## Mental Model
+## 🧠 Mental Model
 
-Kubot is organized around the question:
+Kubot is organized around this question:
 
 ```text
 What is running, what owns it, what config feeds it, and what do the logs say?
 ```
 
-The main flow is:
+The app tries to translate Kubernetes objects into more human labels:
 
 ```text
-Context -> Namespace -> Pod -> Related config/secrets/network/logs/events
+Deployment -> "main app"
+Service    -> "network entry"
+ConfigMap  -> "config"
+Secret     -> "secrets"
+ReplicaSet -> "internal rollout copy, usually not important"
 ```
 
-## Project Notes
+## 🛠️ Project Notes
 
 - JavaFX UI is built programmatically. No FXML.
 - Main launcher class: `dev.kubot.Main`
@@ -173,6 +201,8 @@ Context -> Namespace -> Pod -> Related config/secrets/network/logs/events
 - Related-resource explanation logic: `dev.kubot.service.RelationResolver`
 - Styling: `src/main/resources/dev/kubot/kubot.css`
 
-## License
+## 📜 License
 
 MIT. Open source, use it, change it, ship it. No warranty.
+
+Human translation: use freely, but if your cluster starts screaming, responsibility is not included in the package.
