@@ -54,6 +54,34 @@
     -fx-text-fill: white;
 }
 
+.status-legend {
+    -fx-padding: 0 0 0 8;
+}
+
+.legend-label {
+    -fx-font-size: 14px;
+}
+
+.legend-dot {
+    -fx-min-width: 12px;
+    -fx-min-height: 12px;
+    -fx-pref-width: 12px;
+    -fx-pref-height: 12px;
+    -fx-background-radius: 6px;
+}
+
+.legend-warning {
+    -fx-background-color: #9a5a00;
+}
+
+.legend-error {
+    -fx-background-color: #b00020;
+}
+
+.legend-unknown {
+    -fx-background-color: #5d3f99;
+}
+
 .kubot-list {
     -fx-border-color: #8b8b8b;
     -fx-border-width: 1;

@@ -48,6 +48,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -244,7 +245,7 @@ public class KubotApp extends Application {
                 loadPods(selectedNamespace);
             }
         });
-        HBox podHeader = new HBox(10, new Label("Pods"), refreshPodsButton);
+        HBox podHeader = new HBox(10, new Label("Pods"), refreshPodsButton, statusLegend());
         podHeader.setAlignment(Pos.CENTER_LEFT);
 
         podTable = new TableView<>();
@@ -270,6 +271,28 @@ public class KubotApp extends Application {
         pane.setPadding(new Insets(10));
         VBox.setVgrow(podTable, Priority.ALWAYS);
         return pane;
+    }
+
+    private HBox statusLegend() {
+        HBox legend = new HBox(8,
+                new Label("Status:"),
+                legendItem("Warning", "legend-warning"),
+                legendItem("Problem", "legend-error"),
+                legendItem("Unknown", "legend-unknown")
+        );
+        legend.getStyleClass().add("status-legend");
+        legend.setAlignment(Pos.CENTER_LEFT);
+        return legend;
+    }
+
+    private HBox legendItem(String text, String colorClass) {
+        Region dot = new Region();
+        dot.getStyleClass().addAll("legend-dot", colorClass);
+        Label label = new Label(text);
+        label.getStyleClass().add("legend-label");
+        HBox item = new HBox(4, dot, label);
+        item.setAlignment(Pos.CENTER_LEFT);
+        return item;
     }
 
     private TabPane buildDetailsPane() {
