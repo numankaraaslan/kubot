@@ -49,8 +49,12 @@ In other words: it looks. It does not poke.
 
 ## 🧰 Requirements
 
-- Java installed
-- Maven if building from source
+- **JDK 25 or newer**
+  - Recommended download: [Eclipse Temurin JDK](https://adoptium.net/temurin/releases/)
+  - Check it with: `java --version`
+- **Apache Maven**
+  - Install guide: [maven.apache.org/install.html](https://maven.apache.org/install.html)
+  - Check it with: `mvn --version`
 - A kubeconfig file readable by the Kubernetes Java client
 
 On Windows, kubeconfig is usually here:
@@ -70,6 +74,8 @@ If `kubectl` already works, Kubot should see the same worlds.
 ## 🍳 Cook It Yourself
 
 There are no prebuilt releases yet. For now, build it locally.
+
+That means this repo currently expects you to bring Java + Maven, then run the script for your OS.
 
 On Windows:
 
@@ -104,6 +110,23 @@ Manual build command:
 ```powershell
 mvn clean package -Dmaven.test.skip=true
 ```
+
+## 📦 Releases Later
+
+Professional-ish open source projects usually grow through these stages:
+
+1. **Source only**: clone the repo, install the tools, build it yourself. That is Kubot today.
+2. **GitHub Releases**: each version gets a release page with downloadable files.
+3. **Prebuilt app files**: Windows `.exe` / `.msi`, macOS `.dmg`, Linux `.deb` / `.rpm` / `.AppImage`, or at least a ready-made `.jar`.
+4. **Automated builds**: GitHub Actions builds the app for every release tag so the files are reproducible and not handmade on one laptop.
+
+For Kubot, the sensible next step is probably simple:
+
+```text
+v0.1.0 release -> attach Kubot.jar -> users still need Java installed
+```
+
+Later, if this becomes less potato and more serious, we can package a real desktop installer that bundles Java too.
 
 ## 🔌 Kubernetes Setup
 
