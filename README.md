@@ -81,17 +81,24 @@ On Windows:
 .\run.bat
 ```
 
-The script runs:
+On macOS/Linux:
+
+```sh
+chmod +x ./run.sh
+./run.sh
+```
+
+The scripts build the shaded JAR and run it:
 
 ```powershell
 mvn clean package -Dmaven.test.skip=true
-javaw -jar target\Kubot.jar
+java/javaw -jar target/Kubot.jar
 ```
 
 The generated JAR is:
 
 ```text
-target\Kubot.jar
+target/Kubot.jar
 ```
 
 If Windows has `.jar` files associated with Java, the JAR can also be opened directly.
