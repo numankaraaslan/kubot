@@ -33,6 +33,7 @@ You just want to click the thing and see what feeds it.
 - Human-ish related resource explanations:
   - main app workload, such as Deployment
   - Services that route traffic to the pod
+  - Ingresses that expose the pod to external URLs
   - ConfigMaps used as environment/config
   - Secrets used as environment/files
   - internal Kubernetes rollout objects, such as ReplicaSets
@@ -219,6 +220,7 @@ The app tries to translate Kubernetes objects into more human labels:
 ```text
 Deployment -> "main app"
 Service    -> "network entry"
+Ingress    -> "external URL that routes traffic to the pod"
 ConfigMap  -> "config"
 Secret     -> "secrets"
 ReplicaSet -> "internal rollout copy, usually not important"

@@ -9,7 +9,7 @@ public record RelatedResource(String source, String kind, String name, String de
 
     public String category()
     {
-        if ("service selector".equals(source) && "Service".equals(kind))
+        if (("service selector".equals(source) && "Service".equals(kind)) || "Ingress".equals(kind))
         {
             return "Network";
         }
@@ -62,6 +62,10 @@ public record RelatedResource(String source, String kind, String name, String de
         if ("service selector".equals(source) && "Service".equals(kind))
         {
             return "other apps use this to reach the pod";
+        }
+        if ("ingress".equals(source) && "Ingress".equals(kind))
+        {
+            return "external URL that routes traffic to this pod";
         }
         if ("ConfigMap".equals(kind) && "envFrom".equals(source))
         {

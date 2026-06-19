@@ -19,6 +19,9 @@ import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1EnvFromSource;
 import io.kubernetes.client.openapi.models.V1EnvVar;
 import io.kubernetes.client.openapi.models.V1EnvVarSource;
+import io.kubernetes.client.openapi.models.V1HTTPIngressPath;
+import io.kubernetes.client.openapi.models.V1Ingress;
+import io.kubernetes.client.openapi.models.V1IngressRule;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1OwnerReference;
 import io.kubernetes.client.openapi.models.V1Pod;
@@ -40,6 +43,7 @@ public class RelationResolver
         addOwners(pod, lookup, related);
         addConfigReferences(pod, lookup, related);
         addMatchingServices(pod, lookup, related);
+        addMatchingIngresses(pod, lookup, related);
         return related.stream().sorted(Comparator.comparingInt((RelatedResource r) -> r.sortPriority()).thenComparing(r -> r.kind()).thenComparing(r -> r.name())).toList();
     }
 
@@ -183,6 +187,58 @@ public class RelationResolver
             if (selector != null && !selector.isEmpty() && labels.entrySet().containsAll(selector.entrySet()))
             {
                 related.add(new RelatedResource("service selector", "Service", name(service.getMetadata()), "Service selector matches this pod's labels: " + selector, YamlSupport.dump(service)));
+            }
+        }
+    }
+
+    private void addMatchingIngresses(V1Pod pod, ResourceLookup lookup, List<RelatedResource> related)
+    {
+        Map<String, String> labels = pod.getMetadata() == null ? null : pod.getMetadata().getLabels();
+        if (labels == null || labels.isEmpty())
+        {
+            return;
+        }
+        List<String> matchingServiceNames = new ArrayList<>();
+        for (V1Service service : lookup.services())
+        {
+            Map<String, String> selector = service.getSpec() == null ? null : service.getSpec().getSelector();
+            if (selector != null && !selector.isEmpty() && labels.entrySet().containsAll(selector.entrySet()))
+            {
+                matchingServiceNames.add(name(service.getMetadata()));
+            }
+        }
+        if (matchingServiceNames.isEmpty())
+        {
+            return;
+        }
+        for (V1Ingress ingress : lookup.ingresses())
+        {
+            if (ingress.getSpec() == null || ingress.getSpec().getRules() == null)
+            {
+                continue;
+            }
+            for (V1IngressRule rule : ingress.getSpec().getRules())
+            {
+                if (rule.getHttp() == null || rule.getHttp().getPaths() == null)
+                {
+                    continue;
+                }
+                for (V1HTTPIngressPath path : rule.getHttp().getPaths())
+                {
+                    if (path.getBackend() == null || path.getBackend().getService() == null)
+                    {
+                        continue;
+                    }
+                    String backendServiceName = path.getBackend().getService().getName();
+                    if (backendServiceName != null && matchingServiceNames.contains(backendServiceName))
+                    {
+                        String host = rule.getHost() == null ? "(no host)" : rule.getHost();
+                        String ingressPath = path.getPath() == null ? "/" : path.getPath();
+                        String detail = "Routes " + host + ingressPath + " to Service " + backendServiceName;
+                        related.add(new RelatedResource("ingress", "Ingress", name(ingress.getMetadata()), detail, YamlSupport.dump(ingress)));
+                        return;
+                    }
+                }
             }
         }
     }

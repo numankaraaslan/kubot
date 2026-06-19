@@ -112,3 +112,11 @@
     -fx-background-color: #8f1d1d;
     -fx-text-fill: white;
 }
+
+.status-label {
+    -fx-font-style: italic;
+    -fx-text-fill: #404040;
+    -fx-background-color: #e8e8e8;
+    -fx-background-radius: 6;
+    -fx-padding: 4 12 4 12;
+}

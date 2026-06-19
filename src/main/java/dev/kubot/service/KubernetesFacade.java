@@ -19,6 +19,7 @@ import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.BatchV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.apis.NetworkingV1Api;
 import io.kubernetes.client.openapi.models.CoreV1Event;
 import io.kubernetes.client.openapi.models.V1Namespace;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
@@ -32,6 +33,7 @@ public class KubernetesFacade
     private CoreV1Api core;
     private AppsV1Api apps;
     private BatchV1Api batch;
+    private NetworkingV1Api networking;
     private String currentNamespace = "default";
 
     public List<String> contexts() throws IOException
@@ -83,6 +85,7 @@ public class KubernetesFacade
         core = new CoreV1Api(client);
         apps = new AppsV1Api(client);
         batch = new BatchV1Api(client);
+        networking = new NetworkingV1Api(client);
     }
 
     public List<V1Namespace> namespaces() throws ApiException
@@ -122,7 +125,18 @@ public class KubernetesFacade
     public ResourceLookup lookup(String namespace)
     {
         ensureConnectedUnchecked();
-        return new ResourceLookup(quiet(() -> core.listNamespacedConfigMap(namespace).execute().getItems()), quiet(() -> core.listNamespacedSecret(namespace).execute().getItems()), quiet(() -> core.listNamespacedService(namespace).execute().getItems()), quiet(() -> apps.listNamespacedReplicaSet(namespace).execute().getItems()), quiet(() -> apps.listNamespacedDeployment(namespace).execute().getItems()), quiet(() -> apps.listNamespacedStatefulSet(namespace).execute().getItems()), quiet(() -> apps.listNamespacedDaemonSet(namespace).execute().getItems()), quiet(() -> batch.listNamespacedJob(namespace).execute().getItems()), quiet(() -> batch.listNamespacedCronJob(namespace).execute().getItems()));
+        ResourceLookup lookup = new ResourceLookup();
+        lookup.setConfigMaps(quiet(() -> core.listNamespacedConfigMap(namespace).execute().getItems()));
+        lookup.setSecrets(quiet(() -> core.listNamespacedSecret(namespace).execute().getItems()));
+        lookup.setServices(quiet(() -> core.listNamespacedService(namespace).execute().getItems()));
+        lookup.setIngresses(quiet(() -> networking.listNamespacedIngress(namespace).execute().getItems()));
+        lookup.setReplicaSets(quiet(() -> apps.listNamespacedReplicaSet(namespace).execute().getItems()));
+        lookup.setDeployments(quiet(() -> apps.listNamespacedDeployment(namespace).execute().getItems()));
+        lookup.setStatefulSets(quiet(() -> apps.listNamespacedStatefulSet(namespace).execute().getItems()));
+        lookup.setDaemonSets(quiet(() -> apps.listNamespacedDaemonSet(namespace).execute().getItems()));
+        lookup.setJobs(quiet(() -> batch.listNamespacedJob(namespace).execute().getItems()));
+        lookup.setCronJobs(quiet(() -> batch.listNamespacedCronJob(namespace).execute().getItems()));
+        return lookup;
     }
 
     public String logs(String namespace, String pod, String container, int lines, OffsetDateTime since) throws ApiException

@@ -97,7 +97,7 @@ public class KubotApp extends Application
     private V1Pod selectedPod;
     private int requestedLogLines = 200;
     private String rawLogs = "";
-    private ResourceLookup currentLookup = ResourceLookup.empty();
+    private ResourceLookup currentLookup = new ResourceLookup();
 
     @Override
     public void start(Stage stage)
@@ -110,6 +110,7 @@ public class KubotApp extends Application
         scene.getStylesheets().add(Objects.requireNonNull(KubotApp.class.getResource("/dev/kubot/kubot.css")).toExternalForm());
         root.setStyle("-fx-font-size: " + APP_FONT_SIZE + "px;");
         stage.setTitle("Kubot");
+        stage.getIcons().add(new javafx.scene.image.Image(Objects.requireNonNull(KubotApp.class.getResourceAsStream("/dev/kubot/kubot-icon.png"))));
         stage.setScene(scene);
         stage.show();
 
@@ -138,12 +139,14 @@ public class KubotApp extends Application
         showDetailsPane.setOnAction(event -> updatePanelVisibility());
 
         statusLabel = new Label("Starting...");
-        statusLabel.setMaxWidth(Double.MAX_VALUE);
+        statusLabel.getStyleClass().add("status-label");
 
-        HBox topBar = new HBox(10, new Label("Context"), contextSelector, refreshButton, setupHelpButton, showNamespacesPane, showDetailsPane, statusLabel);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox topBar = new HBox(10, new Label("Context"), contextSelector, refreshButton, setupHelpButton, showNamespacesPane, showDetailsPane, spacer, statusLabel);
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setPadding(new Insets(10));
-        HBox.setHgrow(statusLabel, Priority.ALWAYS);
         return topBar;
     }
 
