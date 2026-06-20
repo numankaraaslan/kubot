@@ -757,9 +757,34 @@ public class KubotApp extends Application
                 age: %s
                 owner: %s
 
+                # Port Forward
+                %s
+
                 # YAML
                 %s
-                """.formatted(name(pod.getMetadata()), selectedNamespace, status(pod).getPhase(), readyContainers(pod), restarts(pod), age(pod.getMetadata()), managedByLabel(pod), YamlSupport.dump(pod));
+                """.formatted(name(pod.getMetadata()), selectedNamespace, status(pod).getPhase(), readyContainers(pod), restarts(pod), age(pod.getMetadata()), managedByLabel(pod), portForwardCommand(pod), YamlSupport.dump(pod));
+    }
+
+    private String portForwardCommand(V1Pod pod)
+    {
+        String podName = name(pod.getMetadata());
+        String port = "8080";
+        if (pod.getSpec() != null && pod.getSpec().getContainers() != null)
+        {
+            for (var container : pod.getSpec().getContainers())
+            {
+                if (container.getPorts() != null && !container.getPorts().isEmpty())
+                {
+                    Integer p = container.getPorts().getFirst().getContainerPort();
+                    if (p != null)
+                    {
+                        port = p.toString();
+                        break;
+                    }
+                }
+            }
+        }
+        return "kubectl port-forward pod/" + podName + " -n " + selectedNamespace + " " + port + ":" + port;
     }
 
     private String managedByLabel(V1Pod pod)

@@ -120,3 +120,7 @@
     -fx-background-radius: 6;
     -fx-padding: 4 12 4 12;
 }
+
+.tab-pane>.tab-header-area>.headers-region {
+    -fx-padding: 0;
+}
