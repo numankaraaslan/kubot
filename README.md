@@ -39,6 +39,7 @@ You just want to click the thing and see what feeds it.
   - internal Kubernetes rollout objects, such as ReplicaSets
 - Pod events when the current account is allowed to read them
 - Container logs with selectable row count: `100`, `200`, `400`, `1000`
+- Copy-pasteable `kubectl port-forward` commands for quick local access
 
 ## 🚫 What Kubot Does Not Do
 
