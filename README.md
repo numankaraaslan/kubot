@@ -16,10 +16,10 @@ Because sometimes you do not want this:
 
 ```powershell
 kubectl get pods -n something
-kubectl describe pod whatever -n something
-kubectl logs whatever -n something --tail=200
-kubectl get configmap ...
-kubectl get secret ...
+kubectl the heck is this pod --help
+kubectl logs whatever somehwere stuff
+kubectl get configthingy ...
+kubectl get national secrets ...
 ```
 
 You just want to click the thing and see what feeds it.
@@ -170,43 +170,6 @@ Limited accounts are okay. Kubot tries to keep working and show friendly message
 
 For namespace-scoped accounts that cannot list namespaces, Kubot falls back to the namespace stored in the kube context.
 
-## 🪪 Example Read-Only Viewer RBAC
-
-Useful for a personal K3s/VPS cluster where a service account manages demo pods in one namespace, but Kubot should read the whole cluster.
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: kubot-cluster-viewer
-rules:
-- apiGroups: [""]
-  resources: ["namespaces", "pods", "pods/log", "services", "configmaps", "secrets", "events"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: ["apps"]
-  resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: ["batch"]
-  resources: ["jobs", "cronjobs"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: ["networking.k8s.io"]
-  resources: ["ingresses"]
-  verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: trial-manager-kubot-cluster-viewer
-subjects:
-- kind: ServiceAccount
-  name: trial-manager
-  namespace: trials
-roleRef:
-  kind: ClusterRole
-  name: kubot-cluster-viewer
-  apiGroup: rbac.authorization.k8s.io
-```
-
 ## 🧠 Mental Model
 
 Kubot is organized around this question:
@@ -239,4 +202,4 @@ ReplicaSet -> "internal rollout copy, usually not important"
 
 MIT. Open source, use it, change it, ship it. No warranty.
 
-Human translation: use freely, but if your cluster starts screaming, responsibility is not included in the package.
+Human translation: use freely, but if your cluster starts screaming, or your secrets leaked, responsibility is not included in the package.
