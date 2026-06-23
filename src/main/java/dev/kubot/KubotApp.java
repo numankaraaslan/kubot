@@ -756,13 +756,37 @@ public class KubotApp extends Application
                 restarts: %s
                 age: %s
                 owner: %s
+                exposed ports: %s
 
                 # Port Forward
                 %s
 
                 # YAML
                 %s
-                """.formatted(name(pod.getMetadata()), selectedNamespace, status(pod).getPhase(), readyContainers(pod), restarts(pod), age(pod.getMetadata()), managedByLabel(pod), portForwardCommand(pod), YamlSupport.dump(pod));
+                """.formatted(name(pod.getMetadata()), selectedNamespace, status(pod).getPhase(), readyContainers(pod), restarts(pod), age(pod.getMetadata()), managedByLabel(pod), exposedPorts(pod), portForwardCommand(pod), YamlSupport.dump(pod));
+    }
+
+    private String exposedPorts(V1Pod pod)
+    {
+        if (pod.getSpec() == null || pod.getSpec().getContainers() == null)
+        {
+            return "none";
+        }
+        java.util.List<String> ports = new java.util.ArrayList<>();
+        for (var container : pod.getSpec().getContainers())
+        {
+            if (container.getPorts() != null)
+            {
+                for (var port : container.getPorts())
+                {
+                    if (port.getContainerPort() != null)
+                    {
+                        ports.add(port.getContainerPort().toString());
+                    }
+                }
+            }
+        }
+        return ports.isEmpty() ? "none" : String.join(", ", ports);
     }
 
     private String portForwardCommand(V1Pod pod)
