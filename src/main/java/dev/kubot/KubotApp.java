@@ -756,6 +756,7 @@ public class KubotApp extends Application
                 restarts: %s
                 age: %s
                 owner: %s
+                node / ip: %s
                 exposed ports: %s
 
                 # Port Forward
@@ -763,7 +764,14 @@ public class KubotApp extends Application
 
                 # YAML
                 %s
-                """.formatted(name(pod.getMetadata()), selectedNamespace, status(pod).getPhase(), readyContainers(pod), restarts(pod), age(pod.getMetadata()), managedByLabel(pod), exposedPorts(pod), portForwardCommand(pod), YamlSupport.dump(pod));
+                """.formatted(name(pod.getMetadata()), selectedNamespace, status(pod).getPhase(), readyContainers(pod), restarts(pod), age(pod.getMetadata()), managedByLabel(pod), nodeAndIp(pod), exposedPorts(pod), portForwardCommand(pod), YamlSupport.dump(pod));
+    }
+
+    private String nodeAndIp(V1Pod pod)
+    {
+        String node = pod.getSpec() != null && pod.getSpec().getNodeName() != null ? pod.getSpec().getNodeName() : "unknown";
+        String ip = pod.getStatus() != null && pod.getStatus().getPodIP() != null ? pod.getStatus().getPodIP() : "unknown";
+        return node + " / " + ip;
     }
 
     private String exposedPorts(V1Pod pod)
