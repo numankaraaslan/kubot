@@ -784,7 +784,13 @@ public class KubotApp extends Application
                 }
             }
         }
-        return "kubectl port-forward pod/" + podName + " -n " + selectedNamespace + " " + port + ":" + port;
+        String contextFlag = "";
+        String selectedContext = contextSelector.getSelectionModel().getSelectedItem();
+        if (selectedContext != null && !"(default kube config)".equals(selectedContext))
+        {
+            contextFlag = " --context " + selectedContext;
+        }
+        return "kubectl" + contextFlag + " port-forward pod/" + podName + " -n " + selectedNamespace + " " + port + ":" + port;
     }
 
     private String managedByLabel(V1Pod pod)

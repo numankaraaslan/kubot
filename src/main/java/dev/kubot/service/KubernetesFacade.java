@@ -159,14 +159,23 @@ public class KubernetesFacade
     {
         if (throwable instanceof ApiException apiException)
         {
+            if (apiException.getCode() == 0)
+            {
+                Throwable cause = apiException.getCause();
+                String causeMsg = cause != null && cause.getMessage() != null ? cause.getMessage() : apiException.getMessage();
+                return ("Connection failed: " + causeMsg).lines().findFirst().orElse("Connection failed");
+            }
             String body = apiException.getResponseBody();
+            String useful = firstUseful(body, apiException.getMessage());
+            String singleLine = useful == null ? "" : useful.replaceAll("\\r?\\n", " | ");
             if (apiException.getCode() == 403)
             {
-                return "RBAC denied this request: " + firstUseful(body, apiException.getMessage());
+                return "RBAC denied this request: " + singleLine;
             }
-            return "Kubernetes API error " + apiException.getCode() + ": " + firstUseful(body, apiException.getMessage());
+            return "Kubernetes API error " + apiException.getCode() + ": " + singleLine;
         }
-        return throwable.getMessage() == null ? throwable.toString() : throwable.getMessage();
+        String msg = throwable.getMessage() == null ? throwable.toString() : throwable.getMessage();
+        return msg.lines().findFirst().orElse(msg);
     }
 
     private KubeConfig loadKubeConfig() throws IOException
