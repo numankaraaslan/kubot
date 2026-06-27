@@ -30,6 +30,7 @@ You just want to click the thing and see what feeds it.
 - Namespaces, with normal/user namespaces first and system-ish ones colored red
 - Pods in the selected namespace
 - Pod status, readiness, restarts, age, and what manages the pod
+- **Live CPU and memory usage** per pod, color-coded by load (green / orange / red), with a timestamp so you know how fresh the data is — requires `metrics-server` in the cluster
 - Human-ish related resource explanations:
   - main app workload, such as Deployment
   - Services that route traffic to the pod
@@ -40,6 +41,7 @@ You just want to click the thing and see what feeds it.
 - Pod events when the current account is allowed to read them
 - Container logs with selectable row count: `100`, `200`, `400`, `1000`
 - Copy-pasteable `kubectl port-forward` commands for quick local access
+- Node name and pod IP in the pod overview
 
 ## 🚫 What Kubot Does Not Do
 
@@ -166,6 +168,7 @@ Kubot works best when the selected Kubernetes user can read:
 - jobs
 - cronjobs
 - ingresses
+- `metrics.k8s.io` (optional — needed for live CPU/RAM usage; Kubot shows "not available" gracefully if metrics-server is not installed)
 
 Limited accounts are okay. Kubot tries to keep working and show friendly messages when RBAC says "nope."
 
@@ -197,6 +200,7 @@ ReplicaSet -> "internal rollout copy, usually not important"
 - JavaFX application class: `dev.kubot.KubotApp`
 - Kubernetes client wrapper: `dev.kubot.service.KubernetesFacade`
 - Related-resource explanation logic: `dev.kubot.service.RelationResolver`
+- Pod metrics model: `dev.kubot.model.PodMetrics`
 - Styling: `src/main/resources/dev/kubot/kubot.css`
 
 ## 📜 License

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import dev.kubot.model.PodMetrics;
 import dev.kubot.model.ResourceLookup;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -24,6 +25,7 @@ import io.kubernetes.client.openapi.models.CoreV1Event;
 import io.kubernetes.client.openapi.models.V1Namespace;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1ResourceRequirements;
 import io.kubernetes.client.util.Config;
 import io.kubernetes.client.util.KubeConfig;
 
@@ -137,6 +139,120 @@ public class KubernetesFacade
         lookup.setJobs(quiet(() -> batch.listNamespacedJob(namespace).execute().getItems()));
         lookup.setCronJobs(quiet(() -> batch.listNamespacedCronJob(namespace).execute().getItems()));
         return lookup;
+    }
+
+    public PodMetrics podMetrics(String namespace, String podName, V1Pod pod)
+    {
+        ensureConnectedUnchecked();
+        try
+        {
+            String path = "/apis/metrics.k8s.io/v1beta1/namespaces/" + namespace + "/pods/" + podName;
+            okhttp3.Call call = client.buildCall(client.getBasePath(), path, "GET", new java.util.ArrayList<io.kubernetes.client.openapi.Pair>(), new java.util.ArrayList<io.kubernetes.client.openapi.Pair>(), null, new java.util.HashMap<String, String>(), new java.util.HashMap<String, String>(), new java.util.HashMap<String, Object>(), new String[] { "BearerToken" }, null);
+            io.kubernetes.client.openapi.ApiResponse<String> response = client.execute(call, String.class);
+            return parseMetrics(response.getData(), pod);
+        }
+        catch (ApiException ex)
+        {
+            return null;
+        }
+    }
+
+    private PodMetrics parseMetrics(String json, V1Pod pod)
+    {
+        if (json == null || json.isBlank())
+        {
+            return null;
+        }
+        long cpuNano = 0;
+        long memBytes = 0;
+        java.util.regex.Matcher cpuMatcher = java.util.regex.Pattern.compile("\"cpu\":\"([^\"]+)\"").matcher(json);
+        while (cpuMatcher.find())
+        {
+            cpuNano += parseCpuToNano(cpuMatcher.group(1));
+        }
+        java.util.regex.Matcher memMatcher = java.util.regex.Pattern.compile("\"memory\":\"([^\"]+)\"").matcher(json);
+        while (memMatcher.find())
+        {
+            memBytes += parseMemoryToBytes(memMatcher.group(1));
+        }
+        long cpuLimitNano = 0;
+        long memLimitBytes = 0;
+        if (pod != null && pod.getSpec() != null && pod.getSpec().getContainers() != null)
+        {
+            for (var container : pod.getSpec().getContainers())
+            {
+                V1ResourceRequirements res = container.getResources();
+                if (res != null && res.getLimits() != null)
+                {
+                    io.kubernetes.client.custom.Quantity cpuLimit = res.getLimits().get("cpu");
+                    if (cpuLimit != null)
+                    {
+                        cpuLimitNano += parseCpuToNano(cpuLimit.toSuffixedString());
+                    }
+                    io.kubernetes.client.custom.Quantity memLimit = res.getLimits().get("memory");
+                    if (memLimit != null)
+                    {
+                        memLimitBytes += parseMemoryToBytes(memLimit.toSuffixedString());
+                    }
+                }
+            }
+        }
+        return new PodMetrics(cpuNano, cpuLimitNano, memBytes, memLimitBytes);
+    }
+
+    private long parseCpuToNano(String value)
+    {
+        if (value == null || value.isBlank())
+        {
+            return 0;
+        }
+        if (value.endsWith("n"))
+        {
+            return Long.parseLong(value.substring(0, value.length() - 1));
+        }
+        if (value.endsWith("m"))
+        {
+            return Long.parseLong(value.substring(0, value.length() - 1)) * 1_000_000L;
+        }
+        try
+        {
+            return (long) (Double.parseDouble(value) * 1_000_000_000L);
+        }
+        catch (NumberFormatException ex)
+        {
+            return 0;
+        }
+    }
+
+    private long parseMemoryToBytes(String value)
+    {
+        if (value == null || value.isBlank())
+        {
+            return 0;
+        }
+        String[][] suffixes = { { "Ki", "1024" }, { "Mi", "1048576" }, { "Gi", "1073741824" }, { "Ti", "1099511627776" }, { "K", "1000" }, { "M", "1000000" }, { "G", "1000000000" }, { "T", "1000000000000" } };
+        for (String[] suffix : suffixes)
+        {
+            if (value.endsWith(suffix[0]))
+            {
+                try
+                {
+                    return Long.parseLong(value.substring(0, value.length() - suffix[0].length())) * Long.parseLong(suffix[1]);
+                }
+                catch (NumberFormatException ex)
+                {
+                    return 0;
+                }
+            }
+        }
+        try
+        {
+            return Long.parseLong(value);
+        }
+        catch (NumberFormatException ex)
+        {
+            return 0;
+        }
     }
 
     public String logs(String namespace, String pod, String container, int lines, OffsetDateTime since) throws ApiException

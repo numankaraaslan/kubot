@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dev.kubot.model.PodMetrics;
 import dev.kubot.model.RelatedResource;
 import dev.kubot.model.ResourceLookup;
 import dev.kubot.service.KubernetesFacade;
@@ -39,6 +40,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
@@ -54,6 +56,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 
 public class KubotApp extends Application
@@ -82,7 +86,8 @@ public class KubotApp extends Application
     private ListView<V1Namespace> namespaceList;
     private TableView<V1Pod> podTable;
     private TextField podFilter;
-    private TextArea overviewText;
+    private TextFlow overviewFlow;
+    private ScrollPane overviewScroll;
     private ListView<RelatedResource> relatedList;
     private TextArea relatedYaml;
     private TextArea eventsText;
@@ -98,6 +103,9 @@ public class KubotApp extends Application
     private int requestedLogLines = 200;
     private String rawLogs = "";
     private ResourceLookup currentLookup = new ResourceLookup();
+    private PodMetrics currentMetrics;
+    private java.time.LocalTime metricsFetchedAt;
+    private TabPane detailsPaneWrapper;
 
     @Override
     public void start(Stage stage)
@@ -154,13 +162,13 @@ public class KubotApp extends Application
     {
         namespacePane = buildNamespacePane();
         podPane = buildPodPane();
-        detailsPane = buildDetailsPane();
+        detailsPaneWrapper = buildDetailsPaneWrapper();
 
         namespacePane.setMinWidth(LEFT_PANEL_MIN_WIDTH);
         podPane.setMinWidth(CENTER_PANEL_MIN_WIDTH);
         detailsPane.setMinWidth(RIGHT_PANEL_MIN_WIDTH);
 
-        mainSplitPane = new SplitPane(namespacePane, podPane, detailsPane);
+        mainSplitPane = new SplitPane(namespacePane, podPane, detailsPaneWrapper);
         mainSplitPane.setOrientation(Orientation.HORIZONTAL);
         setPanelDividers();
         return mainSplitPane;
@@ -180,13 +188,13 @@ public class KubotApp extends Application
             mainSplitPane.getItems().remove(namespacePane);
         }
 
-        if (wantDetails && !mainSplitPane.getItems().contains(detailsPane))
+        if (wantDetails && !mainSplitPane.getItems().contains(detailsPaneWrapper))
         {
-            mainSplitPane.getItems().add(detailsPane);
+            mainSplitPane.getItems().add(detailsPaneWrapper);
         }
         else if (!wantDetails)
         {
-            mainSplitPane.getItems().remove(detailsPane);
+            mainSplitPane.getItems().remove(detailsPaneWrapper);
         }
 
         Platform.runLater(() -> setPanelDividers());
@@ -195,7 +203,7 @@ public class KubotApp extends Application
     private void setPanelDividers()
     {
         boolean hasNamespaces = mainSplitPane.getItems().contains(namespacePane);
-        boolean hasDetails = mainSplitPane.getItems().contains(detailsPane);
+        boolean hasDetails = mainSplitPane.getItems().contains(detailsPaneWrapper);
         if (hasNamespaces && hasDetails)
         {
             mainSplitPane.setDividerPositions(0.18, 0.62);
@@ -314,9 +322,14 @@ public class KubotApp extends Application
         return item;
     }
 
-    private TabPane buildDetailsPane()
+    private void buildDetailsPane()
     {
-        overviewText = readOnlyArea();
+        overviewFlow = new TextFlow();
+        overviewFlow.setStyle("-fx-font-family: 'Consolas', 'Monospaced'; -fx-font-size: " + APP_FONT_SIZE + "px; -fx-padding: 8;");
+        overviewScroll = new ScrollPane(overviewFlow);
+        overviewScroll.setFitToWidth(true);
+        overviewScroll.setStyle("-fx-background-color: transparent;");
+
         relatedList = new ListView<>(relatedResources);
         relatedList.getStyleClass().add("kubot-list");
         relatedList.setCellFactory(view -> new ListCell<>()
@@ -360,12 +373,18 @@ public class KubotApp extends Application
         logsPane.setPadding(new Insets(8));
         VBox.setVgrow(logsText, Priority.ALWAYS);
 
-        TabPane tabs = new TabPane();
-        tabs.getTabs().add(tab("Overview", overviewText));
-        tabs.getTabs().add(tab("Related", relatedPane));
-        tabs.getTabs().add(tab("Events", eventsText));
-        tabs.getTabs().add(tab("Logs", logsPane));
-        return tabs;
+        detailsPane = new TabPane();
+        detailsPane.getTabs().add(tab("Overview", overviewScroll));
+        detailsPane.getTabs().add(tab("Related", relatedPane));
+        detailsPane.getTabs().add(tab("Events", eventsText));
+        detailsPane.getTabs().add(tab("Logs", logsPane));
+
+    }
+
+    private TabPane buildDetailsPaneWrapper()
+    {
+        buildDetailsPane();
+        return detailsPane;
     }
 
     private TableColumn<V1Pod, String> column(String title, java.util.function.Function<V1Pod, String> value, int width)
@@ -474,6 +493,7 @@ public class KubotApp extends Application
         {
             loadPods(selectedNamespace);
         }
+        refreshPodDetails();
     }
 
     private void showSetupHelp()
@@ -548,11 +568,20 @@ public class KubotApp extends Application
 
     private void loadPods(String namespace)
     {
+        String previousPodName = selectedPod != null ? name(selectedPod.getMetadata()) : null;
         run("Loading pods in " + namespace, () -> kubernetes.pods(namespace), loaded -> {
             pods.setAll(loaded.stream().sorted(Comparator.comparing(pod -> name(pod.getMetadata()))).toList());
             if (!pods.isEmpty())
             {
-                podTable.getSelectionModel().selectFirst();
+                V1Pod toSelect = previousPodName == null ? null : pods.stream().filter(pod -> previousPodName.equals(name(pod.getMetadata()))).findFirst().orElse(null);
+                if (toSelect != null)
+                {
+                    podTable.getSelectionModel().select(toSelect);
+                }
+                else
+                {
+                    podTable.getSelectionModel().selectFirst();
+                }
             }
             loadNamespaceLookup(namespace);
             setStatus("Loaded " + pods.size() + " pods from " + namespace);
@@ -566,7 +595,7 @@ public class KubotApp extends Application
             podTable.refresh();
             if (selectedPod != null)
             {
-                overviewText.setText(buildOverview(selectedPod));
+                buildOverviewFlow(selectedPod, currentMetrics);
                 relatedResources.setAll(relationResolver.resolve(selectedPod, currentLookup));
                 if (!relatedResources.isEmpty())
                 {
@@ -593,7 +622,8 @@ public class KubotApp extends Application
         }
         containerSelector.setItems(FXCollections.observableArrayList(containerNames(pod)));
         containerSelector.getSelectionModel().selectFirst();
-        overviewText.setText(buildOverview(pod));
+        buildOverviewFlow(pod, null);
+        refreshPodDetails();
         loadRelated(selectedNamespace, pod);
         loadEvents(selectedNamespace, pod);
     }
@@ -601,12 +631,72 @@ public class KubotApp extends Application
     private void clearPodDetails()
     {
         selectedPod = null;
-        overviewText.clear();
+        currentMetrics = null;
+        metricsFetchedAt = null;
+        overviewFlow.getChildren().clear();
         relatedResources.clear();
         relatedYaml.clear();
         eventsText.clear();
         logsText.clear();
         containerSelector.getItems().clear();
+    }
+
+    private void refreshPodDetails()
+    {
+        if (selectedPod == null || selectedNamespace == null)
+        {
+            return;
+        }
+        V1Pod pod = selectedPod;
+        String namespace = selectedNamespace;
+        run("Fetching pod metrics", () -> kubernetes.podMetrics(namespace, name(pod.getMetadata()), pod), metrics -> {
+            currentMetrics = metrics;
+            metricsFetchedAt = java.time.LocalTime.now();
+            buildOverviewFlow(pod, metrics);
+        });
+    }
+
+    private void buildOverviewFlow(V1Pod pod, PodMetrics metrics)
+    {
+        overviewFlow.getChildren().clear();
+        String overviewText = buildOverview(pod);
+        for (String line : overviewText.lines().toList())
+        {
+            Text textNode;
+            if (metrics != null && line.startsWith("cpu:"))
+            {
+                textNode = new Text(line + "\n");
+                textNode.getStyleClass().add(metricStyleClass(metrics.cpuPercent()));
+            }
+            else if (metrics != null && line.startsWith("memory:"))
+            {
+                textNode = new Text(line + "\n");
+                textNode.getStyleClass().add(metricStyleClass(metrics.memoryPercent()));
+            }
+            else
+            {
+                textNode = new Text(line + "\n");
+                textNode.getStyleClass().add("overview-text");
+            }
+            overviewFlow.getChildren().add(textNode);
+        }
+    }
+
+    private String metricStyleClass(double percent)
+    {
+        if (percent < 0)
+        {
+            return "overview-text";
+        }
+        if (percent >= 90)
+        {
+            return "metric-danger";
+        }
+        if (percent >= 70)
+        {
+            return "metric-warn";
+        }
+        return "metric-ok";
     }
 
     private int selectedLogLineCount()
@@ -661,6 +751,7 @@ public class KubotApp extends Application
             }).sorted(Comparator.comparing(podEvent -> podEvent.getLastTimestamp() == null ? OffsetDateTime.MIN : podEvent.getLastTimestamp())).toList();
             events.setAll(matching);
             eventsText.setText(matching.isEmpty() ? "No recent Kubernetes complaints for this pod." : matching.stream().map(event -> eventLine(event)).collect(Collectors.joining(System.lineSeparator())));
+            setStatus("Pod info loaded: " + podName);
         });
         task.setOnFailed(failed -> {
             Throwable failure = task.getException();
@@ -747,6 +838,10 @@ public class KubotApp extends Application
 
     private String buildOverview(V1Pod pod)
     {
+        boolean tried = metricsFetchedAt != null;
+        String cpuLine = currentMetrics != null ? "cpu: " + currentMetrics.cpuFormatted() : (tried ? "cpu: not available" : "cpu: loading...");
+        String memLine = currentMetrics != null ? "memory: " + currentMetrics.memoryFormatted() : (tried ? "memory: not available" : "memory: loading...");
+        String fetchedAt = !tried ? "metrics: loading..." : (currentMetrics != null ? "metrics as of: " + metricsFetchedAt.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")) : "metrics: not available (no metrics-server?)");
         return """
                 # Pod
                 name: %s
@@ -758,13 +853,16 @@ public class KubotApp extends Application
                 owner: %s
                 node / ip: %s
                 exposed ports: %s
+                %s
+                %s
+                %s
 
                 # Port Forward
                 %s
 
                 # YAML
                 %s
-                """.formatted(name(pod.getMetadata()), selectedNamespace, status(pod).getPhase(), readyContainers(pod), restarts(pod), age(pod.getMetadata()), managedByLabel(pod), nodeAndIp(pod), exposedPorts(pod), portForwardCommand(pod), YamlSupport.dump(pod));
+                """.formatted(name(pod.getMetadata()), selectedNamespace, status(pod).getPhase(), readyContainers(pod), restarts(pod), age(pod.getMetadata()), managedByLabel(pod), nodeAndIp(pod), exposedPorts(pod), cpuLine, memLine, fetchedAt, portForwardCommand(pod), YamlSupport.dump(pod));
     }
 
     private String nodeAndIp(V1Pod pod)

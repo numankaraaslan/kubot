@@ -124,3 +124,28 @@
 .tab-pane>.tab-header-area>.headers-region {
     -fx-padding: 0;
 }
+
+.overview-text {
+    -fx-fill: #1a1a1a;
+}
+
+.metric-ok {
+    -fx-fill: #1b6e2a;
+    -fx-font-weight: bold;
+}
+
+.metric-warn {
+    -fx-fill: #b85000;
+    -fx-font-weight: bold;
+}
+
+.metric-danger {
+    -fx-fill: #b71c1c;
+    -fx-font-weight: bold;
+}
+
+.refresh-details-btn {
+    -fx-font-size: 13px;
+    -fx-padding: 2 10 2 10;
+    -fx-opacity: 0.85;
+}
