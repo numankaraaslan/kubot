@@ -40,7 +40,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
@@ -56,8 +55,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 
 public class KubotApp extends Application
@@ -86,8 +83,7 @@ public class KubotApp extends Application
     private ListView<V1Namespace> namespaceList;
     private TableView<V1Pod> podTable;
     private TextField podFilter;
-    private TextFlow overviewFlow;
-    private ScrollPane overviewScroll;
+    private TextArea overviewText;
     private ListView<RelatedResource> relatedList;
     private TextArea relatedYaml;
     private TextArea eventsText;
@@ -324,11 +320,9 @@ public class KubotApp extends Application
 
     private void buildDetailsPane()
     {
-        overviewFlow = new TextFlow();
-        overviewFlow.setStyle("-fx-font-family: 'Consolas', 'Monospaced'; -fx-font-size: " + APP_FONT_SIZE + "px; -fx-padding: 8;");
-        overviewScroll = new ScrollPane(overviewFlow);
-        overviewScroll.setFitToWidth(true);
-        overviewScroll.setStyle("-fx-background-color: transparent;");
+        overviewText = readOnlyArea();
+        overviewText.setStyle("-fx-font-family: 'Consolas', 'Monospaced'; -fx-font-size: " + APP_FONT_SIZE + "px;");
+        overviewText.setWrapText(false);
 
         relatedList = new ListView<>(relatedResources);
         relatedList.getStyleClass().add("kubot-list");
@@ -374,7 +368,7 @@ public class KubotApp extends Application
         VBox.setVgrow(logsText, Priority.ALWAYS);
 
         detailsPane = new TabPane();
-        detailsPane.getTabs().add(tab("Overview", overviewScroll));
+        detailsPane.getTabs().add(tab("Overview", overviewText));
         detailsPane.getTabs().add(tab("Related", relatedPane));
         detailsPane.getTabs().add(tab("Events", eventsText));
         detailsPane.getTabs().add(tab("Logs", logsPane));
@@ -633,7 +627,7 @@ public class KubotApp extends Application
         selectedPod = null;
         currentMetrics = null;
         metricsFetchedAt = null;
-        overviewFlow.getChildren().clear();
+        overviewText.clear();
         relatedResources.clear();
         relatedYaml.clear();
         eventsText.clear();
@@ -658,28 +652,7 @@ public class KubotApp extends Application
 
     private void buildOverviewFlow(V1Pod pod, PodMetrics metrics)
     {
-        overviewFlow.getChildren().clear();
-        String overviewText = buildOverview(pod);
-        for (String line : overviewText.lines().toList())
-        {
-            Text textNode;
-            if (metrics != null && line.startsWith("cpu:"))
-            {
-                textNode = new Text(line + "\n");
-                textNode.getStyleClass().add(metricStyleClass(metrics.cpuPercent()));
-            }
-            else if (metrics != null && line.startsWith("memory:"))
-            {
-                textNode = new Text(line + "\n");
-                textNode.getStyleClass().add(metricStyleClass(metrics.memoryPercent()));
-            }
-            else
-            {
-                textNode = new Text(line + "\n");
-                textNode.getStyleClass().add("overview-text");
-            }
-            overviewFlow.getChildren().add(textNode);
-        }
+        overviewText.setText(buildOverview(pod));
     }
 
     private String metricStyleClass(double percent)

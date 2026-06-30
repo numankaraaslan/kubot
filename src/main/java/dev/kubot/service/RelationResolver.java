@@ -42,6 +42,7 @@ public class RelationResolver
         List<RelatedResource> related = new ArrayList<>();
         addOwners(pod, lookup, related);
         addConfigReferences(pod, lookup, related);
+        addNameMatchedConfigMaps(pod, lookup, related);
         addMatchingServices(pod, lookup, related);
         addMatchingIngresses(pod, lookup, related);
         return related.stream().sorted(Comparator.comparingInt((RelatedResource r) -> r.sortPriority()).thenComparing(r -> r.kind()).thenComparing(r -> r.name())).toList();
@@ -133,6 +134,33 @@ public class RelationResolver
             {
                 addContainerConfigReferences(container, lookup, related);
             }
+        }
+    }
+
+    private void addNameMatchedConfigMaps(V1Pod pod, ResourceLookup lookup, List<RelatedResource> related)
+    {
+        Map<String, String> labels = pod.getMetadata() == null ? null : pod.getMetadata().getLabels();
+        if (labels == null)
+        {
+            return;
+        }
+        String appLabel = labels.get("app");
+        if (appLabel == null || appLabel.isBlank())
+        {
+            return;
+        }
+        for (V1ConfigMap cm : lookup.configMaps())
+        {
+            if (!named(cm.getMetadata(), appLabel))
+            {
+                continue;
+            }
+            boolean alreadyListed = related.stream().anyMatch(r -> "ConfigMap".equals(r.kind()) && appLabel.equals(r.name()));
+            if (alreadyListed)
+            {
+                continue;
+            }
+            related.add(new RelatedResource("name match", "ConfigMap", appLabel, "Name matches app label", YamlSupport.dump(cm)));
         }
     }
 
